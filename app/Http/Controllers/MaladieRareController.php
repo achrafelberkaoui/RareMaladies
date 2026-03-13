@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\MaladieRare;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use OpenAI\Laravel\Facades\OpenAI;
 
 class MaladieRareController extends Controller
@@ -76,27 +77,33 @@ class MaladieRareController extends Controller
     ]);
     }
 
-    public function generateDescription(Request $request)
-    {
-        try{
-        $response = OpenAI::chat()->create([
-        'model' => 'gpt-4o-mini',
+public function generateDescription(Request $request)
+{
+    try{
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer '.env('GROQ_API_KEY'),
+            'Content-Type' => 'application/json'
+        ])->post('https://api.groq.com/openai/v1/chat/completions', [
+
+            'model' => 'llama-3.3-70b-versatile',
             'messages' => [
-                    [
+                [
                     'role' => 'user',
-                    'content' => 'Generate a short medical description for this rare maladie: '.$request->name
-                    ]
-            ],
+                    'content' => 'Generate a short medical description for this rare disease: '.$request->name
+                ]
+            ]
         ]);
-        
+
+        $description = $response->json()['choices'][0]['message']['content'];
         return response()->json([
-        'description' => $response->choices[0]->message->content
+            'description' => $description
         ]);
-        }catch(Exception $e){
-            return response()->json([
-                'error'=>'AI not found',
-                'message'=> $e->getMessage()
-            ]);
-        }
+
+    }catch(\Exception $e){
+        return response()->json([
+            'error' => 'AI error',
+            'message' => $e->getMessage()
+        ]);
     }
+}
 }
